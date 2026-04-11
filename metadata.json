@@ -1,0 +1,5 @@
+{
+  "name": "The Bags",
+  "description": "The Bags is a next-generation Solana-based token studio designed to simplify token creation, trading, and management. Features include one-click token creation, IPFS/Arweave metadata storage, built-in bonding curves, real-time analytics, and AI-driven autonomous agents. Supporting all major Solana wallets including Phantom, Solflare, and WalletConnect-compatible wallets.",
+  "requestFramePermissions": []
+}
