@@ -1,20 +1,42 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# The Bags – AI Token Launchpad
 
-# Run and deploy your AI Studio app
+The Bags is an AI-powered token launchpad built on Solana that allows users to create, launch, and manage tokens easily without technical complexity.
 
-This contains everything you need to run your app locally.
+## 🚀 Features
 
-View your app in AI Studio: https://ai.studio/apps/2d506154-9ef9-4561-8e78-9c83df1d0b63
+- AI-powered token creation
+- Multi-wallet support (Phantom, Solflare, Backpack, Trust Wallet, Coinbase Wallet, WalletConnect)
+- Real-time portfolio tracking
+- Claimable rewards system
+- Community activity feed
+- Token simulation before launch
+- Priority fee optimization
+- IPFS & Arweave storage support
+- Secure API authentication
+- Mobile-friendly UI
 
-## Run Locally
+## 🧠 AI Capabilities
 
-**Prerequisites:**  Node.js
+- Smart token parameter suggestions
+- Automated launch optimization
+- Real-time insights for better decisions
 
+## 🛠 Tech Stack
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+- Solana Blockchain
+- Bags API
+- AI Integration
+- Web3 Wallet Adapter
+- TypeScript / Node.js
+
+## 👥 Team
+
+Dark Track's
+
+## 📌 Description
+
+The Bags simplifies Web3 token creation by providing an all-in-one platform where users can create tokens, connect wallets, track assets, and engage with a community ecosystem. It removes technical barriers and brings AI-driven automation into token launching.
+
+## ⚡ Status
+
+Hackathon Submission Project
