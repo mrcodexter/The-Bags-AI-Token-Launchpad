@@ -10,18 +10,21 @@ import {
     TrustWalletAdapter,
     CoinbaseWalletAdapter,
     TokenPocketWalletAdapter,
+    BitKeepWalletAdapter,
+    MathWalletAdapter,
+    SafePalWalletAdapter,
+    Coin98WalletAdapter,
+    LedgerWalletAdapter,
+    NightlyWalletAdapter,
+    XDEFIWalletAdapter,
 } from '@solana/wallet-adapter-wallets';
 import { WalletConnectWalletAdapter } from '@solana/wallet-adapter-walletconnect';
-import { WalletModalProvider } from '@solana/wallet-adapter-react-ui';
 import { clusterApiUrl } from '@solana/web3.js';
 import { toast } from 'sonner';
-
-// Default styles that can be overridden by your app
-import '@solana/wallet-adapter-react-ui/styles.css';
+import { useNetwork } from '../context/NetworkContext';
 
 export const SolanaWalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    // The network can be set to 'devnet', 'testnet', or 'mainnet-beta'.
-    const network = WalletAdapterNetwork.Mainnet;
+    const { network } = useNetwork();
 
     // You can also provide a custom RPC endpoint.
     const endpoint = useMemo(() => clusterApiUrl(network), [network]);
@@ -36,15 +39,22 @@ export const SolanaWalletProvider: React.FC<{ children: React.ReactNode }> = ({ 
             new TrustWalletAdapter(),
             new CoinbaseWalletAdapter(),
             new TokenPocketWalletAdapter(),
+            new BitKeepWalletAdapter(),
+            new MathWalletAdapter(),
+            new SafePalWalletAdapter(),
+            new Coin98WalletAdapter(),
+            new LedgerWalletAdapter(),
+            new NightlyWalletAdapter(),
+            new XDEFIWalletAdapter(),
             new WalletConnectWalletAdapter({
                 network,
                 options: {
-                    projectId: 'c6677464082211603ba077435f1f728c', // Example project ID
+                    projectId: 'c6677464082211603ba077435f1f728c', // Using existing working ID
                     metadata: {
                         name: 'The Bags',
                         description: 'Solana Token Studio',
-                        url: 'https://thebags.solana',
-                        icons: ['https://picsum.photos/200']
+                        url: window.location.origin,
+                        icons: ['https://picsum.photos/seed/bags/200/200']
                     }
                 }
             }),
@@ -65,9 +75,7 @@ export const SolanaWalletProvider: React.FC<{ children: React.ReactNode }> = ({ 
     return (
         <ConnectionProvider endpoint={endpoint}>
             <WalletProvider wallets={wallets} autoConnect localStorageKey="bags-wallet-session" onError={onError}>
-                <WalletModalProvider>
-                    {children}
-                </WalletModalProvider>
+                {children}
             </WalletProvider>
         </ConnectionProvider>
     );

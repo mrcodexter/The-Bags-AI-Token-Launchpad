@@ -20,8 +20,10 @@ async function startServer() {
   const BAGS_API_BASE = "https://public-api-v2.bags.fm/api/v1";
   const BAGS_API_KEY = process.env.BAGS_API_KEY;
 
-  app.all("/api/bags/*", async (req, res) => {
-    const endpoint = req.params[0];
+  app.all(["/api/bags", "/api/bags/*"], async (req, res) => {
+    // Get the path after /api/bags
+    const fullPath = req.path;
+    const endpoint = fullPath.replace(/^\/api\/bags\/?/, "").replace(/^\//, "");
     const url = `${BAGS_API_BASE}/${endpoint}`;
 
     // Mock handlers for advanced features not yet in the public API
@@ -36,22 +38,48 @@ async function startServer() {
         }
       });
     }
+
+    if (!BAGS_API_KEY) {
+      console.warn("BAGS_API_KEY is missing. API calls to public-api-v2.bags.fm will likely fail.");
+    }
     
     try {
+      if (endpoint) {
+        console.log(`Proxying ${req.method} to: ${url}`);
+      } else {
+        console.log(`Bags API Root requested, returning mock info`);
+        return res.json({ status: "ok", message: "Bags API Proxy is running" });
+      }
+
       const response = await axios({
         method: req.method,
         url,
         data: req.body,
         params: req.query,
         headers: {
-          "x-api-key": BAGS_API_KEY,
+          "x-api-key": BAGS_API_KEY || "",
+          "Accept": "application/json",
           "Content-Type": "application/json",
         },
+        timeout: 10000,
+        validateStatus: () => true, // Handle all status codes
       });
+
+      // If the upstream returned HTML (like a 404 or maintenance page), normalize it to JSON
+      if (typeof response.data === 'string' && response.data.includes('<!DOCTYPE html>')) {
+        console.error(`Bags API returned HTML for ${url} (Status: ${response.status})`);
+        return res.status(response.status || 500).json({ 
+          error: "Upstream API Error", 
+          message: "The Bags API returned an HTML error page. This usually means the endpoint is invalid or the service is undergoing maintenance.",
+          status: response.status,
+          endpoint
+        });
+      }
+
       res.status(response.status).json(response.data);
     } catch (error: any) {
-      console.error("Bags API Error:", error.response?.data || error.message);
-      res.status(error.response?.status || 500).json(error.response?.data || { error: "Internal Server Error" });
+      console.error("Bags API Proxy Exception:", error.message);
+      res.status(500).json({ error: "Internal Proxy Error", message: error.message });
     }
   });
 

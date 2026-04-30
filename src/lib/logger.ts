@@ -1,5 +1,5 @@
 
-export type LogAction = 'token_creation' | 'fee_claim' | 'authority_update' | 'token_burn' | 'airdrop' | 'trade_buy' | 'trade_sell';
+export type LogAction = 'token_creation' | 'fee_claim' | 'authority_update' | 'token_burn' | 'airdrop' | 'trade_buy' | 'trade_sell' | 'deploy_agent' | 'token_transfer';
 
 export interface TransactionLog {
   id: string;

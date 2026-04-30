@@ -5,6 +5,8 @@ export interface TokenMetadata {
   symbol: string;
   description: string;
   image: string; // URL or base64
+  supply?: number;
+  decimals?: number;
   twitter?: string;
   telegram?: string;
   website?: string;
@@ -12,9 +14,15 @@ export interface TokenMetadata {
 
 export interface CreateTokenRequest {
   metadata: TokenMetadata;
-  amount: number;
+  amount: number; // Initial buy amount
   feeRecipient: string;
   creator: string;
+  bondingCurve?: {
+    type: string;
+    initialPrice: number;
+    scalingFactor: number;
+    reserveRatio: number;
+  };
 }
 
 export interface BagsTokenResponse {
@@ -69,8 +77,13 @@ export const bagsApi = {
     return response.data;
   },
 
-  getAnalytics: async (mint: string) => {
-    const response = await axios.get(`/api/bags/analytics/${mint}`);
+  transferToken: async (mint: string, recipient: string, amount: number, sender: string) => {
+    const response = await axios.post('/api/bags/manage/transfer', { mint, recipient, amount, sender });
+    return response.data;
+  },
+
+  getAnalytics: async (mint: string, range?: string) => {
+    const response = await axios.get(`/api/bags/analytics/${mint}`, { params: { range } });
     return response.data;
   },
 
