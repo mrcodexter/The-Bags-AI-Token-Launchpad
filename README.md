@@ -1,20 +1,71 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 🚀 THE BAGS
 
-# Run and deploy your AI Studio app
+AI-powered Solana token launch platform with advanced analytics, multi-wallet support, and intelligent trading tools.
 
-This contains everything you need to run your app locally.
+---
 
-View your app in AI Studio: https://ai.studio/apps/2d506154-9ef9-4561-8e78-9c83df1d0b63
+## ✨ Features
 
-## Run Locally
+- AI-powered token creation
+- Real-time token preview
+- Multi-wallet support (Phantom, Trust, Coinbase, WalletConnect)
+- Bonding curve configuration (Linear / Exponential)
+- MEV protection & privacy options
+- AI-based token analysis
 
-**Prerequisites:**  Node.js
+---
 
+## 📊 Analytics
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+- Real-time price tracking
+- Volume and market cap charts
+- Holder distribution insights
+
+---
+
+## 🤖 AI Agents
+
+- Create and deploy AI trading agents
+- Configure strategy, risk tolerance, and budget
+- Save custom strategies using natural language
+
+---
+
+## 🔐 Security & UX
+
+- Confirmation dialogs for sensitive actions (burn, authority update)
+- Input validation for all fields
+- Tooltips for better understanding
+
+---
+
+## 🌐 Token Metadata
+
+- Add Twitter & Telegram links
+- Add website link
+- Share token feature
+
+---
+
+## ⚡ Performance
+
+- Mobile responsive design
+- Optimized rendering
+- Smooth UI experience
+
+---
+
+## 🛠 Tech Stack
+
+- React / TypeScript
+- Tailwind CSS
+- Solana Wallet Adapter
+- AI Integration (Gemini)
+
+---
+
+## 📌 Project Goal
+
+Build a powerful, user-friendly platform for launching and managing tokens with AI assistance and real-time analytics.
+
+---
