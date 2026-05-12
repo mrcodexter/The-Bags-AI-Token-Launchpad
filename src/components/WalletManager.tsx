@@ -39,6 +39,38 @@ const isMobileDevice = () => {
     return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 };
 
+const isInAppBrowser = () => {
+    if (typeof window === 'undefined') return false;
+    return !!((window as any).solana || (window as any).phantom || (window as any).solflare || (window as any).trustWallet || (window as any).ethereum);
+};
+
+// Emergency cleanup of stale sessions
+const clearWalletSessions = () => {
+    if (typeof window === 'undefined') return;
+    console.log('[DEBUG] Purging stale neural links...');
+    
+    const keysToRemove = [
+        'walletName',
+        'walletconnect',
+        'WALLETCONNECT_DEEPLINK_CHOICE',
+        'solana-wallet-adapter-last-wallet',
+        'solana-wallet-adapter-selected-wallet',
+        'wc@2:client:0.3/session'
+    ];
+    
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+    
+    // Clear all WC v2 keys
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('wc@2') || key.includes('wallet-adapter-'))) {
+            localStorage.removeItem(key);
+        }
+    }
+    
+    sessionStorage.clear();
+};
+
 export const WalletManager: FC = () => {
     const { connected, publicKey, wallet, disconnect, select, wallets, connecting } = useWallet();
     const { setVisible } = useWalletModal();
@@ -53,8 +85,27 @@ export const WalletManager: FC = () => {
             .sort((a, b) => priority.indexOf(a.adapter.name) - priority.indexOf(b.adapter.name));
     }, [wallets]);
 
+    // Clear stale state on mount if not connected
+    useEffect(() => {
+        if (!connected && !connecting) {
+            // Check if we have stale keys but no active connection
+            if (localStorage.getItem('walletName') || localStorage.getItem('walletconnect')) {
+                console.log('[DEBUG] Detected stale session keys without connection. Cleaning up.');
+                clearWalletSessions();
+            }
+        }
+    }, [connected, connecting]);
+
     const handleConnectClick = useCallback(() => {
         if (connected) return;
+        
+        // If already in an app browser, use the standard modal which will detect injected wallet
+        if (isInAppBrowser()) {
+            console.log('[DEBUG] In-app browser detected. Using standard selector.');
+            setVisible(true);
+            return;
+        }
+
         if (isMobileDevice()) {
             setShowMobileModal(true);
         } else {
@@ -64,91 +115,77 @@ export const WalletManager: FC = () => {
 
     const handleMobileWalletSelect = useCallback(async (walletName: string) => {
         setShowMobileModal(false);
+        console.log(`[DEBUG] Initiating mobile link for: ${walletName}`);
         
-        // Custom Deep Link logic for Mobile Browsers
-        if (isMobileDevice()) {
-            const currentUrl = window.location.href;
-            const encodedUrl = encodeURIComponent(currentUrl);
+        // Deep Link logic for Mobile Browsers
+        const currentUrl = window.location.href;
+        const encodedUrl = encodeURIComponent(currentUrl);
+        
+        let deepLink = '';
+        switch (walletName) {
+            case 'Phantom':
+                deepLink = `phantom://browse/${encodedUrl}`; // Direct phantom deep link
+                break;
+            case 'Solflare':
+                deepLink = `solflare://browse/${encodedUrl}`; 
+                break;
+            case 'Trust':
+                deepLink = `trust://wc?uri=`;
+                break;
+            case 'Coinbase Wallet':
+                deepLink = `cbwallet://dapp?url=${encodedUrl}`;
+                break;
+            case 'OKX Wallet':
+                deepLink = `okx://wallet/dapp/details?dappUrl=${encodedUrl}`;
+                break;
+            case 'Backpack':
+                deepLink = `backpack://`;
+                break;
+        }
+
+        // Use universal links as fallback for phantom/solflare if direct ones are preferred
+        if (walletName === 'Phantom' && !deepLink) deepLink = `https://phantom.app/ul/browse/${encodedUrl}`;
+        if (walletName === 'Solflare' && !deepLink) deepLink = `https://solflare.com/ul/v1/browse/${encodedUrl}`;
+
+        // If we have a browser-specific deep link (except Trust which usually needs WC), we use it
+        if (deepLink && walletName !== 'Trust') {
+            toast.info(`Launching ${walletName} Neural Bridge`, {
+                description: "Re-routing neural traffic directly into wallet ecosystem.",
+                duration: 4000
+            });
             
-            let deepLink = '';
-            switch (walletName) {
-                case 'Phantom':
-                    deepLink = `https://phantom.app/ul/browse/${encodedUrl}`;
-                    break;
-                case 'Solflare':
-                    deepLink = `https://solflare.com/ul/v1/browse/${encodedUrl}`;
-                    break;
-                case 'Trust':
-                    // Trust doesn't have a direct browse link like Phantom/Solflare easily available for everyone 
-                    // but we can try to use their WC bridge or common deep links if it fails
-                    // For now, let the adapter handle it but give it a nudge if it's Trust
-                    break;
-                case 'Coinbase Wallet':
-                    deepLink = `cbwallet://dapp?url=${encodedUrl}`;
-                    break;
-                case 'OKX Wallet':
-                    deepLink = `okx://wallet/dapp/details?dappUrl=${encodedUrl}`;
-                    break;
-            }
-
-            if (deepLink) {
-                toast.info(`Redirecting to ${walletName}...`, {
-                    description: "Establishing neural bridge via deep link.",
-                    duration: 3000
-                });
-                
-                // Small delay to let toast show
-                setTimeout(() => {
-                    window.location.href = deepLink;
-                }, 500);
-
-                // If after 2 seconds we are still here, the app might not be installed
-                setTimeout(() => {
-                    if (!document.hidden) {
-                        toast.error(`${walletName} not detected`, {
-                            description: "The wallet app might not be installed on this device.",
-                        });
-                    }
-                }, 2500);
-                
-                return;
-            }
+            console.log(`[DEBUG] Launching deep link: ${deepLink}`);
+            setTimeout(() => {
+                window.location.href = deepLink;
+            }, 600);
+            return;
         }
 
         try {
+            console.log(`[DEBUG] Selecting adapter: ${walletName}`);
             await select(walletName as any);
         } catch (error) {
-            console.error('Wallet selection error:', error);
-            toast.error('Neural Link Failed');
+            console.error('[DEBUG] Failed to establish mobile neural link:', error);
+            toast.error('Connection Aborted', {
+                description: 'Interface handshake failed.'
+            });
         }
     }, [select]);
 
-    const resetSession = useCallback(async () => {
+    const resetWallet = useCallback(async () => {
         setIsResetting(true);
+        console.log('[DEBUG] Executing full system purge...');
         try {
             await disconnect();
-            // Aggressive cleanup
-            localStorage.clear();
-            sessionStorage.clear();
-            
-            // Specifically clear standard wallet keys
-            const keysToRemove = [];
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key && (key.includes('wallet') || key.includes('wc@2'))) {
-                    keysToRemove.push(key);
-                }
-            }
-            keysToRemove.forEach(k => localStorage.removeItem(k));
-
-            toast.success('System Neutralized', {
-                description: 'All stale neural traces removed.',
+            clearWalletSessions();
+            toast.success('Interface Cleared', {
+                description: 'All cached neural signatures purged.',
             });
-            
             setTimeout(() => window.location.reload(), 800);
         } catch (error) {
             setIsResetting(false);
-            toast.error('Cleanup Failed');
+            console.error('[DEBUG] Purge failed:', error);
+            toast.error('Purge Failed');
         }
     }, [disconnect]);
 
@@ -303,7 +340,7 @@ export const WalletManager: FC = () => {
                 <DropdownMenuSeparator className="bg-white/5 mx-2" />
 
                 <DropdownMenuItem 
-                    onClick={resetSession}
+                    onClick={resetWallet}
                     disabled={isResetting}
                     className="rounded-xl p-3 focus:bg-red-500/10 transition-colors cursor-pointer group outline-none m-1"
                 >

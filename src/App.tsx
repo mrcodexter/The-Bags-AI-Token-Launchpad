@@ -11,12 +11,21 @@ import {
   Search, Lock, Compass, Sparkles, History,
   ChevronRight, ArrowUpRight, Menu, X, Bell, LogOut,
   Briefcase, Fingerprint, Waves, Target, Share2, Download, Coins,
-  Wallet as WalletIcon
+  Wallet as WalletIcon, Copy, RefreshCw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Toaster, toast } from 'sonner';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { WalletManager } from './components/WalletManager';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './components/ui/dropdown-menu';
 
 // Lazy load feature components
 import { AIOperatingSystem } from './components/AIOperatingSystem';
@@ -47,8 +56,31 @@ export default function App() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showOnboarding, setShowOnboarding] = useState(true);
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('bags-os-theme') as 'dark' | 'light') || 'dark';
+  });
   
   const { connected, publicKey, disconnecting, connecting, select, wallets, wallet, disconnect } = useWallet();
+  const { setVisible } = useWalletModal();
+
+  // Handle theme persistence
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('bags-os-theme', theme);
+  }, [theme]);
+
+  // Global search shortcut
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        const searchInput = document.querySelector('input[placeholder*="Search features"]') as HTMLInputElement;
+        if (searchInput) searchInput.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Notifications for wallet events
   useEffect(() => {
@@ -100,6 +132,7 @@ export default function App() {
     { id: 'intel', label: 'Onchain Intel', icon: Network, color: 'text-green-400' },
     { id: 'viral', label: 'Viral Engine', icon: Share2, color: 'text-pink-400' },
     { id: 'econ', label: 'Tokenomics', icon: Coins, color: 'text-yellow-400' },
+    { id: 'history', label: 'History Hub', icon: History, color: 'text-blue-500' },
   ];
 
   return (
@@ -179,11 +212,20 @@ export default function App() {
            ))}
         </nav>
 
-        <div className="p-4 border-t border-white/5">
+        <div className="p-4 space-y-4 border-t border-white/5">
            <div className={`p-4 glass rounded-[1.5rem] space-y-4 shadow-lg ${!isSidebarOpen && 'lg:hidden'}`}>
               <div className="flex items-center justify-between">
                  <p className="text-[10px] uppercase font-black text-white/20 tracking-wider">Soulbound ID</p>
-                 <Fingerprint className="w-3 h-3 text-blue-500" />
+                 <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                      className="p-1 hover:text-blue-500 transition-colors"
+                      title="Toggle Neural HUD Theme"
+                    >
+                      {theme === 'dark' ? <Sparkles className="w-3 h-3" /> : <Zap className="w-3 h-3" />}
+                    </button>
+                    <Fingerprint className="w-3 h-3 text-blue-500" />
+                 </div>
               </div>
               <div className="flex items-center gap-3 overflow-hidden">
                  <div className="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center font-bold text-xs ring-1 ring-white/10 uppercase italic shrink-0">
@@ -198,14 +240,42 @@ export default function App() {
                     </p>
                  </div>
                  {connected && (
-                   <Button 
-                     variant="ghost" 
-                     size="icon" 
-                     onClick={() => disconnect()}
-                     className="w-6 h-6 p-0 text-white/20 hover:text-red-400"
-                   >
-                     <LogOut className="w-3 h-3" />
-                   </Button>
+                    <DropdownMenu>
+                       <DropdownMenuTrigger className="w-6 h-6 p-0 text-white/20 hover:text-blue-500 flex items-center justify-center rounded-md transition-colors outline-none">
+                          <Settings className="w-3 h-3" />
+                       </DropdownMenuTrigger>
+                       <DropdownMenuContent side="right" align="end" className="bg-[#0a0a0a] border-white/10 rounded-xl">
+                          <DropdownMenuItem onClick={() => {
+                            navigator.clipboard.writeText(publicKey?.toBase58() || '');
+                            toast.success('Address Copied');
+                          }}>
+                             <Copy className="w-3 h-3 mr-2" /> Copy Address
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setVisible(true)}>
+                             <RefreshCw className="w-3 h-3 mr-2" /> Change Wallet
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                              console.log('[DEBUG] Initiating full system purge from profile...');
+                              localStorage.clear();
+                              sessionStorage.clear();
+                              // Purge wallet specific keys
+                              for (let i = localStorage.length - 1; i >= 0; i--) {
+                                const key = localStorage.key(i);
+                                if (key && (key.includes('wallet') || key.includes('wc@2'))) {
+                                  localStorage.removeItem(key);
+                                }
+                              }
+                              toast.info('Neural session reset initiates...');
+                              setTimeout(() => window.location.reload(), 1000);
+                          }}>
+                             <Zap className="w-3 h-3 mr-2" /> Reset Session
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator className="bg-white/5" />
+                          <DropdownMenuItem onClick={() => disconnect()} className="text-red-400">
+                             <LogOut className="w-3 h-3 mr-2" /> Terminate Link
+                          </DropdownMenuItem>
+                       </DropdownMenuContent>
+                    </DropdownMenu>
                  )}
               </div>
            </div>
@@ -239,11 +309,26 @@ export default function App() {
               <div className="relative flex-1 group hidden md:block max-w-md">
                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-blue-500 transition-colors" />
                  <input 
-                   placeholder="Prompt your command..." 
+                   placeholder="Search features (OS, Brain, History...)" 
                    value={searchQuery}
                    onChange={(e) => setSearchQuery(e.target.value)}
+                   onKeyDown={(e) => {
+                     if (e.key === 'Enter') {
+                       const match = NavItems.find(item => item.label.toLowerCase().includes(searchQuery.toLowerCase()));
+                       if (match) {
+                         setActiveTab(match.id);
+                         setSearchQuery('');
+                         toast.info(`Navigating to ${match.label}`);
+                       } else {
+                         toast.error('Command not recognized');
+                       }
+                     }
+                   }}
                    className="w-full bg-white/5 border border-white/5 h-10 rounded-xl pl-12 pr-4 text-sm focus:outline-none focus:border-blue-500/40 focus:ring-4 focus:ring-blue-500/10 transition-all placeholder:text-white/10"
                  />
+                 <div className="absolute right-4 top-1/2 -translate-y-1/2 px-1.5 py-0.5 rounded border border-white/10 text-[10px] font-mono text-white/20 pointer-events-none uppercase flex items-center gap-1">
+                   <kbd className="font-sans">⌘</kbd>K
+                 </div>
               </div>
            </div>
 
