@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -14,37 +14,68 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { useWallet } from '@solana/wallet-adapter-react';
+import { transactionLogger } from '../lib/logger';
+
+const INITIAL_FORM_STATE = {
+  name: '',
+  symbol: '',
+  supply: '1000000000',
+  description: '',
+  decimals: '9'
+};
 
 export function TokenStudio() {
   const { connected, publicKey } = useWallet();
-  const [formData, setFormData] = useState({
-    name: '',
-    symbol: '',
-    supply: '1000000000',
-    description: '',
-    decimals: '9'
-  });
+  const [formData, setFormData] = useState(INITIAL_FORM_STATE);
   const [isDeploying, setIsDeploying] = useState(false);
   const [deployStep, setDeployStep] = useState(0);
 
+  const resetForm = useCallback(() => {
+    setFormData(INITIAL_FORM_STATE);
+    setDeployStep(0);
+    setIsDeploying(false);
+  }, []);
+
   const validateForm = () => {
+    // Name validation: Alphanumeric and spaces
     if (!formData.name.trim()) {
        toast.error("Validation Error", { description: "Token Name is required." });
        return false;
     }
-    if (!formData.symbol.trim() || formData.symbol.length < 2) {
-       toast.error("Validation Error", { description: "Valid Ticker Symbol is required." });
+    if (!/^[a-zA-Z0-9 ]+$/.test(formData.name)) {
+      toast.error("Validation Error", { description: "Token Name must be alphanumeric." });
+      return false;
+    }
+
+    // Symbol validation: 2-10 chars, uppercase letters only
+    if (!formData.symbol.trim() || formData.symbol.length < 2 || formData.symbol.length > 10) {
+       toast.error("Validation Error", { description: "Symbol must be between 2 and 10 characters." });
        return false;
     }
-    if (parseFloat(formData.supply) <= 0) {
-       toast.error("Validation Error", { description: "Supply must be positive." });
+    if (!/^[A-Z]+$/.test(formData.symbol)) {
+      toast.error("Validation Error", { description: "Symbol must contain only uppercase letters." });
+      return false;
+    }
+
+    // Supply validation: Positive integer
+    const supplyVal = parseInt(formData.supply);
+    if (isNaN(supplyVal) || supplyVal <= 0 || !Number.isInteger(Number(formData.supply))) {
+       toast.error("Validation Error", { description: "Initial Supply must be a positive integer." });
        return false;
     }
+
+    // Decimals validation
+    const decimalsVal = parseInt(formData.decimals);
+    if (isNaN(decimalsVal) || decimalsVal < 0 || decimalsVal > 18) {
+      toast.error("Validation Error", { description: "Decimals must be between 0 and 18." });
+      return false;
+    }
+
     return true;
   };
 
   const handleDeploy = async () => {
-    if (!connected) {
+    if (!connected || !publicKey) {
       toast.error('Neural Link Offline', { description: 'Connect your Solana wallet to imprint tokens.' });
       return;
     }
@@ -56,10 +87,12 @@ export function TokenStudio() {
     toast.info('Initialising Deployment Cycle', { description: 'Warping metadata into Solana Matrix.' });
     
     try {
+      const mockMint = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      
       // Step-indexed simulation for realistic feedback
       await new Promise(r => setTimeout(r, 1500));
       setDeployStep(2);
-      toast.info('Creating Mint Authority', { description: 'Assigning ownership to ' + publicKey?.toBase58().slice(0, 8) + '...' });
+      toast.info('Creating Mint Authority', { description: 'Assigning ownership to ' + publicKey.toBase58().slice(0, 8) + '...' });
       
       await new Promise(r => setTimeout(r, 1800));
       setDeployStep(3);
@@ -76,22 +109,50 @@ export function TokenStudio() {
         duration: 6000
       });
       
+      // Integrate transactionLogger
+      transactionLogger.log({
+        action: 'token_creation',
+        status: 'success',
+        wallet: publicKey.toBase58(),
+        signature: 'sim_' + Math.random().toString(36).substring(2, 12),
+        metadata: {
+          name: formData.name,
+          symbol: formData.symbol,
+          supply: formData.supply,
+          mint: mockMint
+        }
+      });
+
       console.log(`[TRANSACTION] Token Created: ${formData.name} (${formData.symbol})`);
-      console.log(`[DEBUG] Mint: ${Math.random().toString(36).substring(2, 44)}`);
+      console.log(`[DEBUG] Mint: ${mockMint}`);
+      
+      // Optional: Clear form after success? The user might want to see the market preview.
+      // For now, let's keep it but maybe suggest reset.
     } catch (error) {
       setIsDeploying(false);
       setDeployStep(0);
       toast.error('Deployment Aborted', { description: 'Interface re-synchronization required.' });
+      
+      if (publicKey) {
+        transactionLogger.log({
+          action: 'token_creation',
+          status: 'failed',
+          wallet: publicKey.toBase58(),
+          metadata: {
+            error: error instanceof Error ? error.message : String(error),
+            form: formData
+          }
+        });
+      }
     }
   };
 
   const cancelDeploy = () => {
-    if (deployStep > 0) {
-      setIsDeploying(false);
-      setDeployStep(0);
-      toast.warning('Sequence Aborted', { description: 'Manual termination of neural imprint.' });
-    }
+    resetForm();
+    toast.warning('Sequence Aborted', { description: 'Neural imprint terminated and form reset.' });
   };
+
+  const remainingChars = useMemo(() => 280 - formData.description.length, [formData.description]);
 
   return (
     <div className="space-y-6 sm:space-y-8 max-w-4xl mx-auto pb-20">
@@ -170,12 +231,17 @@ export function TokenStudio() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-[10px] uppercase font-black tracking-widest text-white/40">Project Summary</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-[10px] uppercase font-black tracking-widest text-white/40">Project Summary</Label>
+                <span className={`text-[9px] font-mono font-bold ${remainingChars < 30 ? 'text-red-500' : 'text-white/20'}`}>
+                  {remainingChars} Neural Units Remaining
+                </span>
+              </div>
               <textarea 
                 value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                onChange={(e) => setFormData({...formData, description: e.target.value.slice(0, 280)})}
                 placeholder="Briefly describe the neural purpose of this token..."
-                className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 min-h-[120px] text-sm focus:outline-none focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 transition-all font-medium placeholder:text-white/10"
+                className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 min-h-[120px] text-sm focus:outline-none focus:border-blue-500/50 focus:ring-4 focus:ring-blue-500/10 transition-all font-medium placeholder:text-white/10 resize-none"
               />
             </div>
           </CardContent>

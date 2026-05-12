@@ -45,15 +45,28 @@ import {
   ImmersiveExperience 
 } from './components/stubs';
 
-const mockTransactions = [
-  { id: '1', type: 'Launch', token: 'PEPE_AI', amount: '500 SOL', status: 'Success', date: '2026-05-10 14:20' },
-  { id: '2', type: 'Swap', token: 'SOL -> BAGS', amount: '12.5 SOL', status: 'Success', date: '2026-05-10 12:05' },
-  { id: '3', type: 'Provide Liq', token: 'BAGS/SOL', amount: '250/250', status: 'Pending', date: '2026-05-11 09:15' },
-  { id: '4', type: 'Treasury Rebalance', token: 'USDC/SOL', amount: '10,000 USDC', status: 'Success', date: '2026-05-11 11:30' },
+import { transactionLogger, TransactionLog } from './lib/logger';
+
+// Mock initial data if no real logs exist, to keep the UI populated as an example
+const DEFAULT_LOGS: TransactionLog[] = [
+  { id: '1', timestamp: Date.now() - 3600000, action: 'token_creation', status: 'success', wallet: 'demo', metadata: { name: 'PEPE_AI', symbol: 'PEPE', supply: '1B' } },
+  { id: '2', timestamp: Date.now() - 7200000, action: 'trade_buy', status: 'success', wallet: 'demo', metadata: { token: 'SOL -> BAGS', amount: '12.5 SOL' } },
 ];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('launch');
+  const [logs, setLogs] = useState<TransactionLog[]>([]);
+
+  // Sync logs
+  useEffect(() => {
+    const refreshLogs = () => {
+      const realLogs = transactionLogger.getLogs();
+      setLogs(realLogs.length > 0 ? realLogs : DEFAULT_LOGS);
+    };
+    refreshLogs();
+    window.addEventListener('bags_logs_updated', refreshLogs);
+    return () => window.removeEventListener('bags_logs_updated', refreshLogs);
+  }, []);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -433,29 +446,29 @@ export default function App() {
                                </tr>
                             </thead>
                             <tbody className="divide-y divide-white/5 text-[11px] sm:text-xs">
-                               {mockTransactions.map((tx) => (
+                               {logs.map((tx) => (
                                  <tr key={tx.id} className="hover:bg-white/[0.02] transition-colors group cursor-pointer">
                                     <td className="px-6 sm:px-8 py-4 sm:py-6">
                                        <div className="flex items-center gap-3">
-                                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${tx.type === 'Launch' ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'}`}>
-                                            <Zap className="w-4 h-4" />
+                                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${tx.action === 'token_creation' ? 'bg-green-500/20 text-green-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                                            {tx.action === 'token_creation' ? <Rocket className="w-4 h-4" /> : <Zap className="w-4 h-4" />}
                                           </div>
-                                          <span className="font-bold">{tx.type}</span>
+                                          <span className="font-bold uppercase tracking-widest text-[10px]">{tx.action.replace('_', ' ')}</span>
                                        </div>
                                     </td>
                                     <td className="px-6 sm:px-8 py-4 sm:py-6 text-white/60 font-mono">
-                                       {tx.token}
+                                       {tx.metadata.name || tx.metadata.token || 'N/A'}
                                     </td>
                                     <td className="px-6 sm:px-8 py-4 sm:py-6 font-black font-mono">
-                                       {tx.amount}
+                                       {tx.metadata.supply || tx.metadata.amount || '-'}
                                     </td>
                                     <td className="px-6 sm:px-8 py-4 sm:py-6">
-                                       <Badge variant="outline" className={`text-[10px] font-black tracking-widest border-none px-0 ${tx.status === 'Success' ? 'text-green-500' : 'text-blue-400 animate-pulse'}`}>
+                                       <Badge variant="outline" className={`text-[10px] font-black tracking-widest border-none px-0 ${tx.status === 'success' ? 'text-green-500' : 'text-red-400'}`}>
                                           {tx.status.toUpperCase()}
                                        </Badge>
                                     </td>
                                     <td className="px-6 sm:px-8 py-4 sm:py-6 text-right text-white/20 font-mono text-[10px]">
-                                       {tx.date}
+                                       {new Date(tx.timestamp).toLocaleString()}
                                     </td>
                                  </tr>
                                ))}

@@ -11,13 +11,20 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { transactionLogger } from '../lib/logger';
 
 export function TradeInterface() {
+  const { connected, publicKey } = useWallet();
   const [payAmount, setPayAmount] = useState('');
   const [receiveAmount, setReceiveAmount] = useState('');
   const [isSwapping, setIsSwapping] = useState(false);
 
   const handleSwap = () => {
+    if (!connected || !publicKey) {
+      toast.error('Neural Link Offline', { description: 'Connect your Solana wallet to commit exchanges.' });
+      return;
+    }
     if (!payAmount) {
       toast.error('Quantization failed', { description: 'Please enter an input amount.' });
       return;
@@ -27,6 +34,20 @@ export function TradeInterface() {
     
     setTimeout(() => {
       setIsSwapping(false);
+      
+      transactionLogger.log({
+        action: 'trade_buy',
+        status: 'success',
+        wallet: publicKey.toBase58(),
+        metadata: {
+          from: 'SOL',
+          to: 'BAGS',
+          payAmount,
+          receiveAmount: receiveAmount || '125,000'
+        },
+        signature: 'sim_' + Math.random().toString(36).substring(2, 12)
+      });
+
       toast.success('Trade Execution Successful', { 
         description: `Exchanged ${payAmount} SOL for ${receiveAmount || '12,500'} BAGS`,
       });

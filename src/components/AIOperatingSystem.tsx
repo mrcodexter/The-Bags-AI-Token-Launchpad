@@ -16,6 +16,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletManager } from './WalletManager';
 import { toast } from 'sonner';
+import { transactionLogger } from '../lib/logger';
 import {
   Dialog,
   DialogContent,
@@ -149,7 +150,7 @@ export function AIOperatingSystem() {
   }, []);
 
   const handleLaunch = () => {
-    if (!connected) {
+    if (!connected || !publicKey) {
       toast.error("Neural link required", {
         description: "Please establish a connection to the Solana cycle.",
       });
@@ -157,7 +158,22 @@ export function AIOperatingSystem() {
     }
     if (!userPrompt.trim()) return;
     setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] COMMAND: execute prompt-to-launch "${userPrompt}"`]);
+    
+    transactionLogger.log({
+      action: 'deploy_agent',
+      status: 'success',
+      wallet: publicKey.toBase58(),
+      metadata: {
+        prompt: userPrompt,
+        timestamp: new Date().toISOString()
+      },
+      signature: 'sim_' + Math.random().toString(36).substring(2, 12)
+    });
+
     setUserPrompt('');
+    toast.success('Agent Deployment Sequence Initiated', {
+      description: `Analyzing: ${userPrompt.slice(0, 30)}...`
+    });
   };
 
   const filteredAgents = useMemo(() => {
@@ -581,6 +597,21 @@ export function AIOperatingSystem() {
                           <Button 
                             className="h-8 rounded-lg bg-white text-black font-black uppercase text-[9px] tracking-widest px-4 hover:scale-105 transition-transform"
                             onClick={() => {
+                              if (!publicKey) {
+                                toast.error("Neural link required");
+                                return;
+                              }
+                              transactionLogger.log({
+                                action: 'trade_buy', 
+                                status: 'success',
+                                wallet: publicKey.toBase58(),
+                                metadata: {
+                                  agent: recruit.name,
+                                  cost: recruit.cost,
+                                  type: recruit.type
+                                },
+                                signature: 'sim_' + Math.random().toString(36).substring(2, 12)
+                              });
                               toast.success(`Recruitment of ${recruit.name} initiated!`, {
                                 description: "Interface handshake in progress."
                               });
