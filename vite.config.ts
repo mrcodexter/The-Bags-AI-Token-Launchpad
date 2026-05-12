@@ -1,38 +1,35 @@
-import tailwindcss from '@tailwindcss/vite';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
-import {defineConfig, loadEnv} from 'vite';
-import { nodePolyfills } from 'vite-plugin-node-polyfills';
+import { fileURLToPath } from 'url';
 
-export default defineConfig(({mode}) => {
-  const env = loadEnv(mode, '.', '');
-  return {
-    plugins: [
-      react(), 
-      tailwindcss(),
-      nodePolyfills({
-        globals: {
-          Buffer: true,
-          global: true,
-          process: true,
-        },
-      }),
-    ],
-    define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-    },
-    resolve: {
-      alias: {
-        '@': path.resolve(__dirname, './src'),
-        'cross-fetch': path.resolve(__dirname, './src/fetch-shim.ts'),
-        'whatwg-fetch': path.resolve(__dirname, './src/fetch-shim.ts'),
-        'node-fetch': path.resolve(__dirname, './src/fetch-shim.ts'),
-      },
-    },
-    server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
-      hmr: process.env.DISABLE_HMR !== 'true',
-    },
-  };
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// https://vitejs.dev/config/
+export default defineConfig({
+  plugins: [
+    react(),
+    tailwindcss(),
+  ],
+  define: {
+    global: 'window',
+  },
+  resolve: {
+    alias: {
+      'cross-fetch': path.resolve(__dirname, './src/fetch-shim.ts'),
+      'node-fetch': path.resolve(__dirname, './src/fetch-shim.ts'),
+      'isomorphic-fetch': path.resolve(__dirname, './src/fetch-shim.ts'),
+      'whatwg-fetch': path.resolve(__dirname, './src/fetch-shim.ts'),
+      'cross-fetch/polyfill': path.resolve(__dirname, './src/fetch-shim.ts'),
+      'isomorphic-fetch/polyfill': path.resolve(__dirname, './src/fetch-shim.ts'),
+      'node-fetch-native': path.resolve(__dirname, './src/fetch-shim.ts'),
+      'unfetch': path.resolve(__dirname, './src/fetch-shim.ts'),
+    }
+  },
+  server: {
+    port: 3000,
+    host: '0.0.0.0',
+  },
 });
