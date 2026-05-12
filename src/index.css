@@ -21,6 +21,13 @@
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
   border-radius: 2rem !important;
   font-family: var(--font-sans) !important;
+  max-width: 90vw !important;
+  width: 400px !important;
+}
+
+.wallet-adapter-modal-list {
+  grid-gap: 8px !important;
+  padding: 0.5rem 1rem 1.5rem !important;
 }
 
 .wallet-adapter-modal-button-close {
@@ -38,7 +45,9 @@
   font-style: italic !important;
   text-transform: uppercase !important;
   letter-spacing: -0.05em !important;
-  font-size: 1.5rem !important;
+  font-size: 1.25rem !important;
+  text-align: center !important;
+  padding: 1.5rem 1rem 0.5rem !important;
 }
 
 .wallet-adapter-button {
@@ -48,10 +57,12 @@
   text-transform: uppercase !important;
   letter-spacing: -0.02em !important;
   border-radius: 1rem !important;
-  height: 3.5rem !important;
+  height: 3rem !important;
   background: rgba(255, 255, 255, 0.03) !important;
   border: 1px solid rgba(255, 255, 255, 0.05) !important;
   transition: all 0.2s ease !important;
+  justify-content: center !important;
+  font-size: 11px !important;
 }
 
 .wallet-adapter-button:not([disabled]):hover {
@@ -70,6 +81,9 @@
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     touch-action: manipulation;
+    overflow-x: hidden;
+    width: 100%;
+    position: relative;
   }
 }
 

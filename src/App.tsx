@@ -16,7 +16,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { Toaster, toast } from 'sonner';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { WalletManager } from './components/WalletManager';
 
 // Lazy load feature components
 import { AIOperatingSystem } from './components/AIOperatingSystem';
@@ -257,7 +257,7 @@ export default function App() {
                  <span className="absolute top-2 right-2 w-2 h-2 bg-pink-500 rounded-full border-2 border-black" />
               </Button>
               <div className="wallet-adapter-custom scale-90 sm:scale-100 origin-right">
-                <WalletMultiButton className="!bg-white !text-black !font-black !italic !rounded-xl !px-4 sm:!px-6 !h-10 sm:!h-11 hover:!scale-105 !transition-transform !shadow-xl !shadow-white/5 !text-[10px] sm:!text-xs" />
+                <WalletManager />
               </div>
            </div>
         </header>

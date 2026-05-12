@@ -37,12 +37,12 @@ export const SolanaProvider: FC<{ children: ReactNode }> = ({ children }) => {
             new WalletConnectWalletAdapter({
                 network: network,
                 options: {
-                    projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '825902120dbbaaba30164627d2c3882f', // Placeholder for WalletConnect V2
+                    projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '825902120dbbaaba30164627d2c3882f',
                     metadata: {
                         name: 'Bags OS',
                         description: 'Autonomous Solana AI Operating System',
                         url: window.location.origin,
-                        icons: [`${window.location.origin}/icon.png`],
+                        icons: [`${window.location.origin}/logo.png`],
                     },
                 },
             }),
@@ -52,7 +52,7 @@ export const SolanaProvider: FC<{ children: ReactNode }> = ({ children }) => {
 
     return (
         <ConnectionProvider endpoint={endpoint}>
-            <WalletProvider wallets={wallets} autoConnect>
+            <WalletProvider wallets={wallets} autoConnect={false}>
                 <WalletModalProvider>
                     {children}
                 </WalletModalProvider>

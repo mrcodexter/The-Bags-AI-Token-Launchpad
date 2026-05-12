@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useWallet } from '@solana/wallet-adapter-react';
-import { WalletMultiButton } from '@solana/wallet-adapter-react-ui';
+import { WalletManager } from './WalletManager';
 import { toast } from 'sonner';
 
 export function AIOperatingSystem() {
@@ -71,7 +71,7 @@ export function AIOperatingSystem() {
             </div>
           </div>
           <div className="relative z-10 w-full sm:w-auto wallet-adapter-custom shrink-0">
-            <WalletMultiButton className="!bg-white !text-black !font-black !italic !rounded-xl !px-8 !h-12 hover:!scale-105 !transition-transform !shadow-xl !shadow-white/5 !w-full sm:!w-auto" />
+            <WalletManager />
           </div>
         </Card>
       )}
