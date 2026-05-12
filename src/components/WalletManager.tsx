@@ -79,10 +79,22 @@ export const WalletManager: FC = () => {
 
     // Filter wallets for featured display
     const featuredWallets = useMemo(() => {
-        const priority = ['Phantom', 'Solflare', 'Trust', 'Coinbase Wallet', 'Backpack', 'OKX Wallet'];
+        // Priority: Trust Wallet, Binance Wallet
+        // We look for these specifically or fallback to WalletConnect
         return wallets
-            .filter(w => priority.includes(w.adapter.name))
-            .sort((a, b) => priority.indexOf(a.adapter.name) - priority.indexOf(b.adapter.name));
+            .filter(w => {
+                const name = w.adapter.name.toLowerCase();
+                return name.includes('trust') || name.includes('binance') || name.includes('walletconnect');
+            })
+            .sort((a, b) => {
+                const aName = a.adapter.name.toLowerCase();
+                const bName = b.adapter.name.toLowerCase();
+                if (aName.includes('trust')) return -1;
+                if (bName.includes('trust')) return 1;
+                if (aName.includes('binance')) return -1;
+                if (bName.includes('binance')) return 1;
+                return 0;
+            });
     }, [wallets]);
 
     // Clear stale state on mount if not connected
@@ -99,18 +111,19 @@ export const WalletManager: FC = () => {
     const handleConnectClick = useCallback(() => {
         if (connected) return;
         
-        // If already in an app browser, use the standard modal which will detect injected wallet
+        // Mobile-first approach: Show selection modal immediately for better control
+        if (isMobileDevice()) {
+            setShowMobileModal(true);
+            return;
+        }
+
+        // If in-app browser on desktop (unlikely but possible), show selector
         if (isInAppBrowser()) {
-            console.log('[DEBUG] In-app browser detected. Using standard selector.');
             setVisible(true);
             return;
         }
 
-        if (isMobileDevice()) {
-            setShowMobileModal(true);
-        } else {
-            setVisible(true);
-        }
+        setVisible(true);
     }, [connected, setVisible]);
 
     const handleMobileWalletSelect = useCallback(async (walletName: string) => {
@@ -122,53 +135,29 @@ export const WalletManager: FC = () => {
         const encodedUrl = encodeURIComponent(currentUrl);
         
         let deepLink = '';
-        switch (walletName) {
-            case 'Phantom':
-                deepLink = `phantom://browse/${encodedUrl}`; // Direct phantom deep link
-                break;
-            case 'Solflare':
-                deepLink = `solflare://browse/${encodedUrl}`; 
-                break;
-            case 'Trust':
-                deepLink = `trust://wc?uri=`;
-                break;
-            case 'Coinbase Wallet':
-                deepLink = `cbwallet://dapp?url=${encodedUrl}`;
-                break;
-            case 'OKX Wallet':
-                deepLink = `okx://wallet/dapp/details?dappUrl=${encodedUrl}`;
-                break;
-            case 'Backpack':
-                deepLink = `backpack://`;
-                break;
+        if (walletName.includes('Trust')) {
+            deepLink = `trust://wc?uri=`;
+        } else if (walletName.includes('Binance')) {
+            deepLink = `bnc://app.binance.com/web3wallet/dapp?url=${encodedUrl}`;
+        } else if (walletName === 'WalletConnect') {
+             // Let the adapter handle it
         }
 
-        // Use universal links as fallback for phantom/solflare if direct ones are preferred
-        if (walletName === 'Phantom' && !deepLink) deepLink = `https://phantom.app/ul/browse/${encodedUrl}`;
-        if (walletName === 'Solflare' && !deepLink) deepLink = `https://solflare.com/ul/v1/browse/${encodedUrl}`;
-
-        // If we have a browser-specific deep link (except Trust which usually needs WC), we use it
-        if (deepLink && walletName !== 'Trust') {
-            toast.info(`Launching ${walletName} Neural Bridge`, {
-                description: "Re-routing neural traffic directly into wallet ecosystem.",
-                duration: 4000
-            });
-            
-            console.log(`[DEBUG] Launching deep link: ${deepLink}`);
-            setTimeout(() => {
-                window.location.href = deepLink;
-            }, 600);
-            return;
-        }
-
+        // For Trust and Binance, we often want to select the adapter first
+        // and let it generate the URI if it's WalletConnect based.
         try {
             console.log(`[DEBUG] Selecting adapter: ${walletName}`);
             await select(walletName as any);
+            
+            // If we have a specific deep link (like Binance), we might need to trigger it
+            if (deepLink && !deepLink.includes('?uri=')) {
+                setTimeout(() => {
+                    window.location.href = deepLink;
+                }, 500);
+            }
         } catch (error) {
             console.error('[DEBUG] Failed to establish mobile neural link:', error);
-            toast.error('Connection Aborted', {
-                description: 'Interface handshake failed.'
-            });
+            toast.error('Connection Aborted');
         }
     }, [select]);
 

@@ -355,16 +355,24 @@ export function AIOperatingSystem() {
             </div>
           </CardContent>
           <div className="mt-auto p-4 border-t border-white/5 bg-black/40 backdrop-blur-xl">
-             <div className="relative group">
-                <Input 
-                  placeholder="Ask any agent for status or custom ops..."
-                  className="bg-white/5 border-white/10 h-10 pr-12 rounded-xl text-xs focus:ring-blue-500/20"
-                  value={userPrompt}
-                  onChange={(e) => setUserPrompt(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleLaunch()}
-                />
-                <Button onClick={handleLaunch} variant="ghost" size="icon" className="absolute right-1 top-1 h-8 w-8 text-white/20 hover:text-white">
-                  <Command className="w-4 h-4" />
+             <div className="relative group flex items-center gap-2">
+                <div className="relative flex-1">
+                   <Input 
+                     placeholder="Ask any agent for status or custom ops..."
+                     className="bg-white/5 border-white/10 h-11 pr-12 rounded-xl text-xs focus:ring-blue-500/20"
+                     value={userPrompt}
+                     onChange={(e) => setUserPrompt(e.target.value)}
+                     onKeyDown={(e) => e.key === 'Enter' && handleLaunch()}
+                   />
+                   <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 opacity-20 group-focus-within:opacity-100 transition-opacity">
+                      <kbd className="px-1.5 py-0.5 rounded border border-white/10 text-[8px] font-mono">ENTER</kbd>
+                   </div>
+                </div>
+                <Button 
+                   onClick={handleLaunch} 
+                   className="bg-blue-600 hover:bg-blue-500 text-white font-black italic uppercase text-[10px] tracking-widest h-11 px-6 rounded-xl shadow-xl shadow-blue-600/20 transition-all active:scale-95 shrink-0"
+                >
+                   Execute Launch
                 </Button>
              </div>
           </div>

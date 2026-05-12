@@ -9,7 +9,7 @@ import {
   Settings, Shield, Zap, Layout, Command,
   Terminal, Globe, Users, Network, Database,
   Search, Lock, Compass, Sparkles, History,
-  ChevronRight, ArrowUpRight, Menu, X, Bell, LogOut,
+  ChevronRight, ArrowUpRight, Menu, X, Bell, LogOut, ArrowLeftRight,
   Briefcase, Fingerprint, Waves, Target, Share2, Download, Coins,
   Wallet as WalletIcon, Copy, RefreshCw
 } from 'lucide-react';
@@ -36,6 +36,8 @@ import { SocialViralEngine } from './components/SocialViralEngine';
 import { TokenEconomics } from './components/TokenEconomics';
 import { Onboarding } from './components/Onboarding';
 import { TokenAnalytics } from './components/TokenAnalytics';
+import { TokenStudio } from './components/TokenStudio';
+import { TradeInterface } from './components/TradeInterface';
 import { 
   CompetitiveFeatures, 
   EnterpriseScale, 
@@ -51,7 +53,7 @@ const mockTransactions = [
 ];
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('os');
+  const [activeTab, setActiveTab] = useState('launch');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -126,13 +128,16 @@ export default function App() {
   }
 
   const NavItems = [
-    { id: 'os', label: 'AI OS Mode', icon: Terminal, color: 'text-blue-400' },
-    { id: 'mind', label: 'Ecosystem Brain', icon: Brain, color: 'text-purple-400' },
-    { id: 'society', label: 'AI Societies', icon: Users, color: 'text-orange-400' },
-    { id: 'intel', label: 'Onchain Intel', icon: Network, color: 'text-green-400' },
-    { id: 'viral', label: 'Viral Engine', icon: Share2, color: 'text-pink-400' },
-    { id: 'econ', label: 'Tokenomics', icon: Coins, color: 'text-yellow-400' },
-    { id: 'history', label: 'History Hub', icon: History, color: 'text-blue-500' },
+    { id: 'launch', label: 'Launchpad', icon: Rocket, color: 'text-blue-500' },
+    { id: 'trade', label: 'Trade', icon: ArrowLeftRight, color: 'text-purple-500' },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3, color: 'text-green-500' },
+    { id: 'os', label: 'AI Agents', icon: Terminal, color: 'text-blue-400' },
+    { id: 'mind', label: 'Brain', icon: Brain, color: 'text-purple-400' },
+    { id: 'society', label: 'Societies', icon: Users, color: 'text-orange-400' },
+    { id: 'intel', label: 'Onchain', icon: Network, color: 'text-green-400' },
+    { id: 'viral', label: 'Viral', icon: Share2, color: 'text-pink-400' },
+    { id: 'econ', label: 'Econ', icon: Coins, color: 'text-yellow-400' },
+    { id: 'history', label: 'History', icon: History, color: 'text-blue-500' },
   ];
 
   return (
@@ -350,7 +355,17 @@ export default function App() {
         {/* Dynamic Viewport */}
         <div className="p-4 sm:p-6 lg:p-8 xl:p-10 flex-1 flex flex-col w-full max-w-screen-2xl mx-auto">
            <AnimatePresence mode="wait">
-             {activeTab === 'os' && (
+              {activeTab === 'launch' && (
+                <motion.div key="launch" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex-1">
+                  <TokenStudio />
+                </motion.div>
+              )}
+              {activeTab === 'trade' && (
+                <motion.div key="trade" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex-1">
+                  <TradeInterface />
+                </motion.div>
+              )}
+              {activeTab === 'os' && (
                <motion.div 
                  key="os" 
                  initial={{ opacity: 0, y: 10 }} 

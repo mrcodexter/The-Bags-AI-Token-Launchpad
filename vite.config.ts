@@ -18,6 +18,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      "@": path.resolve(__dirname, "./src"),
       'cross-fetch': path.resolve(__dirname, './src/fetch-shim.ts'),
       'node-fetch': path.resolve(__dirname, './src/fetch-shim.ts'),
       'isomorphic-fetch': path.resolve(__dirname, './src/fetch-shim.ts'),
