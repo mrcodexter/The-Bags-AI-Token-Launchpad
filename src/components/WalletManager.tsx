@@ -1,4 +1,4 @@
-import { FC, useState, useEffect, useCallback } from 'react';
+import { FC, useState, useEffect, useCallback, useMemo } from 'react';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { useWalletModal } from '@solana/wallet-adapter-react-ui';
 import { 
@@ -7,11 +7,13 @@ import {
   Copy, 
   LogOut, 
   RefreshCw, 
-  ExternalLink,
-  ShieldCheck,
-  AlertCircle,
   Smartphone,
-  Trash2
+  Trash2,
+  Zap,
+  ArrowRight,
+  Shield,
+  ExternalLink,
+  X
 } from 'lucide-react';
 import { Button } from './ui/button';
 import {
@@ -22,95 +24,237 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from './ui/dialog';
 import { toast } from 'sonner';
+
+// Mobile detection
+const isMobileDevice = () => {
+    if (typeof window === 'undefined') return false;
+    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+};
 
 export const WalletManager: FC = () => {
     const { connected, publicKey, wallet, disconnect, select, wallets, connecting } = useWallet();
     const { setVisible } = useWalletModal();
     const [isResetting, setIsResetting] = useState(false);
+    const [showMobileModal, setShowMobileModal] = useState(false);
 
-    // Deep link detection and handling
-    const handleConnectClick = useCallback(async () => {
+    // Filter wallets for featured display
+    const featuredWallets = useMemo(() => {
+        const priority = ['Phantom', 'Solflare', 'Trust', 'Coinbase Wallet', 'Backpack', 'OKX Wallet'];
+        return wallets
+            .filter(w => priority.includes(w.adapter.name))
+            .sort((a, b) => priority.indexOf(a.adapter.name) - priority.indexOf(b.adapter.name));
+    }, [wallets]);
+
+    const handleConnectClick = useCallback(() => {
         if (connected) return;
-
-        // On mobile, if we have a wallet selected but not connected, try to reconnect or open modal
-        if (!wallet) {
+        if (isMobileDevice()) {
+            setShowMobileModal(true);
+        } else {
             setVisible(true);
-            return;
+        }
+    }, [connected, setVisible]);
+
+    const handleMobileWalletSelect = useCallback(async (walletName: string) => {
+        setShowMobileModal(false);
+        
+        // Custom Deep Link logic for Mobile Browsers
+        if (isMobileDevice()) {
+            const currentUrl = window.location.href;
+            const encodedUrl = encodeURIComponent(currentUrl);
+            
+            let deepLink = '';
+            switch (walletName) {
+                case 'Phantom':
+                    deepLink = `https://phantom.app/ul/browse/${encodedUrl}`;
+                    break;
+                case 'Solflare':
+                    deepLink = `https://solflare.com/ul/v1/browse/${encodedUrl}`;
+                    break;
+                case 'Trust':
+                    // Trust doesn't have a direct browse link like Phantom/Solflare easily available for everyone 
+                    // but we can try to use their WC bridge or common deep links if it fails
+                    // For now, let the adapter handle it but give it a nudge if it's Trust
+                    break;
+                case 'Coinbase Wallet':
+                    deepLink = `cbwallet://dapp?url=${encodedUrl}`;
+                    break;
+                case 'OKX Wallet':
+                    deepLink = `okx://wallet/dapp/details?dappUrl=${encodedUrl}`;
+                    break;
+            }
+
+            if (deepLink) {
+                toast.info(`Redirecting to ${walletName}...`, {
+                    description: "Establishing neural bridge via deep link.",
+                    duration: 3000
+                });
+                
+                // Small delay to let toast show
+                setTimeout(() => {
+                    window.location.href = deepLink;
+                }, 500);
+
+                // If after 2 seconds we are still here, the app might not be installed
+                setTimeout(() => {
+                    if (!document.hidden) {
+                        toast.error(`${walletName} not detected`, {
+                            description: "The wallet app might not be installed on this device.",
+                        });
+                    }
+                }, 2500);
+                
+                return;
+            }
         }
 
         try {
-            await select(wallet.adapter.name);
-            // On mobile, some adapters need a direct nudge or use deep links
-            // The adapter handles this, but we ensure we don't just hang
+            await select(walletName as any);
         } catch (error) {
-            console.error('Connection error:', error);
-            setVisible(true);
+            console.error('Wallet selection error:', error);
+            toast.error('Neural Link Failed');
         }
-    }, [connected, wallet, setVisible, select]);
-
-    const copyAddress = useCallback(() => {
-        if (publicKey) {
-            navigator.clipboard.writeText(publicKey.toBase58());
-            toast.success('Address Copied', {
-                description: 'Neural signature ready for transmission',
-            });
-        }
-    }, [publicKey]);
+    }, [select]);
 
     const resetSession = useCallback(async () => {
         setIsResetting(true);
         try {
             await disconnect();
-            // Clear all local storage related to wallets and WC
+            // Aggressive cleanup
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // Specifically clear standard wallet keys
             const keysToRemove = [];
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
-                if (key && (key.includes('wallet') || key.includes('wc@2') || key.includes('WalletConnect'))) {
+                if (key && (key.includes('wallet') || key.includes('wc@2'))) {
                     keysToRemove.push(key);
                 }
             }
             keysToRemove.forEach(k => localStorage.removeItem(k));
-            sessionStorage.clear();
-            
-            toast.success('Session Reset', {
-                description: 'All stale neural links purged. System clean.',
+
+            toast.success('System Neutralized', {
+                description: 'All stale neural traces removed.',
             });
             
-            // Reload to ensure clean state
-            setTimeout(() => window.location.reload(), 1000);
+            setTimeout(() => window.location.reload(), 800);
         } catch (error) {
             setIsResetting(false);
-            toast.error('Reset Failed');
+            toast.error('Cleanup Failed');
         }
     }, [disconnect]);
 
+    const copyAddress = useCallback(() => {
+        if (publicKey) {
+            navigator.clipboard.writeText(publicKey.toBase58());
+            toast.success('Address Copied');
+        }
+    }, [publicKey]);
+
     if (!connected) {
         return (
-            <Button 
-                onClick={handleConnectClick}
-                disabled={connecting}
-                className="!bg-white !text-black !font-black !italic !rounded-xl !px-4 sm:!px-6 !h-10 sm:!h-11 hover:!scale-105 !transition-transform !shadow-xl !shadow-white/5 !text-[10px] sm:!text-xs uppercase tracking-widest relative overflow-hidden group"
-            >
-                {connecting ? (
-                    <div className="flex items-center gap-2">
-                        <RefreshCw className="w-3 h-3 animate-spin" />
-                        <span>LINKING...</span>
-                    </div>
-                ) : (
-                    <div className="flex items-center gap-2">
-                        <WalletIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-                        <span>CONNECT NEURAL LINK</span>
-                    </div>
-                )}
-                <div className="absolute inset-0 bg-blue-500/10 translate-y-full group-hover:translate-y-0 transition-transform" />
-            </Button>
+            <>
+                <Button 
+                    onClick={handleConnectClick}
+                    disabled={connecting}
+                    className="!bg-white !text-black !font-black !italic !rounded-xl !px-4 sm:!px-6 !h-10 sm:!h-11 hover:!scale-105 !transition-transform !shadow-xl !shadow-white/5 !text-[10px] sm:!text-xs uppercase tracking-widest relative overflow-hidden group border-none"
+                >
+                    {connecting ? (
+                        <div className="flex items-center gap-2">
+                            <RefreshCw className="w-3 h-3 animate-spin" />
+                            <span>SYNCING...</span>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-2">
+                            <Zap className="w-3 h-3 sm:w-4 sm:h-4 fill-black" />
+                            <span>CONNECT OS</span>
+                        </div>
+                    )}
+                    <div className="absolute inset-0 bg-blue-500/10 translate-y-full group-hover:translate-y-0 transition-transform" />
+                </Button>
+
+                <Dialog open={showMobileModal} onOpenChange={setShowMobileModal}>
+                    <DialogContent className="bg-[#050505] border-white/5 text-white p-0 overflow-hidden sm:rounded-3xl max-w-[95vw] w-[400px] z-[1000]">
+                        <div className="absolute inset-0 bg-blue-600/5 blur-3xl pointer-events-none" />
+                        
+                        <div className="p-6 relative z-10">
+                            <div className="flex items-center justify-between mb-6">
+                                <div>
+                                    <h2 className="text-xl font-black italic tracking-tighter uppercase leading-none">Neural Link</h2>
+                                    <p className="text-[10px] text-white/40 font-bold uppercase tracking-wider mt-1">Select Interface Protocol</p>
+                                </div>
+                                <Button variant="ghost" size="icon" onClick={() => setShowMobileModal(false)} className="text-white/20 hover:text-white">
+                                    <X className="w-5 h-5" />
+                                </Button>
+                            </div>
+
+                            <div className="space-y-2">
+                                {featuredWallets.length > 0 ? (
+                                    featuredWallets.map((w) => (
+                                        <button
+                                            key={w.adapter.name}
+                                            onClick={() => handleMobileWalletSelect(w.adapter.name)}
+                                            className="w-full flex items-center justify-between p-4 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/5 transition-all group active:scale-95"
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-xl bg-black flex items-center justify-center border border-white/10 group-hover:border-blue-500/50 transition-colors shrink-0">
+                                                    {w.adapter.icon && (
+                                                        <img src={w.adapter.icon} alt={w.adapter.name} className="w-6 h-6" />
+                                                    )}
+                                                </div>
+                                                <div className="text-left">
+                                                    <p className="font-bold text-sm tracking-tight">{w.adapter.name}</p>
+                                                    <p className="text-[9px] text-white/40 uppercase font-black italic">Production Ready</p>
+                                                </div>
+                                            </div>
+                                            <ArrowRight className="w-4 h-4 text-white/20 group-hover:text-blue-400 group-hover:translate-x-1 transition-all" />
+                                        </button>
+                                    ))
+                                ) : (
+                                    <div className="text-center p-8 border border-dashed border-white/10 rounded-2xl">
+                                        <p className="text-xs text-white/40">No wallets detected</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="mt-4">
+                                <button
+                                    onClick={() => {
+                                        setShowMobileModal(false);
+                                        setVisible(true);
+                                    }}
+                                    className="w-full p-4 bg-transparent hover:bg-white/5 rounded-2xl border border-dashed border-white/10 text-white/40 text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <Smartphone className="w-3 h-3" />
+                                    <span>Other Interfaces</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="p-4 bg-gradient-to-r from-blue-600/10 to-purple-600/10 border-t border-white/5 flex items-center justify-between relative z-10">
+                            <div className="flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                                <span className="text-[9px] text-blue-300 uppercase font-black tracking-widest opacity-60">Mobile Protocol Active</span>
+                            </div>
+                            <span className="text-[9px] text-white/20 font-mono tracking-tighter italic">Bags OS v1.0.42</span>
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            </>
         );
     }
 
     return (
         <DropdownMenu>
-            <DropdownMenuTrigger className="!bg-white/5 !text-white border border-white/10 !font-black !rounded-xl !px-3 sm:!px-4 !h-10 sm:!h-11 hover:!bg-white/10 !transition-all !shadow-lg backdrop-blur-xl group inline-flex items-center justify-center">
+            <DropdownMenuTrigger className="!bg-white/5 !text-white border border-white/10 !font-black !rounded-xl !px-3 sm:!px-4 !h-10 sm:!h-11 hover:!bg-white/10 !transition-all !shadow-lg backdrop-blur-xl group inline-flex items-center justify-center outline-none shrink-0">
                 <div className="flex items-center gap-2 overflow-hidden">
                     <div className="w-6 h-6 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0 border border-blue-500/20 group-hover:bg-blue-500/40 transition-colors">
                         {wallet?.adapter.icon ? (
@@ -119,35 +263,40 @@ export const WalletManager: FC = () => {
                             <WalletIcon className="w-3 h-3 text-blue-400" />
                         )}
                     </div>
-                    <span className="text-[10px] sm:text-xs font-mono tracking-tighter truncate">
+                    <span className="text-[10px] sm:text-xs font-mono tracking-tighter truncate font-bold">
                         {publicKey?.toBase58().slice(0, 4)}...{publicKey?.toBase58().slice(-4)}
                     </span>
                     <ChevronDown className="w-3 h-3 text-white/40 group-data-[state=open]:rotate-180 transition-transform" />
                 </div>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-64 bg-[#0a0a0a] border-white/10 p-2 rounded-2xl shadow-2xl backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-200">
-                <DropdownMenuLabel className="px-3 py-2">
-                    <p className="text-[10px] uppercase font-black tracking-widest text-white/20 mb-1 italic">Neural Status</p>
-                    <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                        <span className="text-xs font-bold text-white uppercase italic tracking-tighter">Connected: {wallet?.adapter.name}</span>
+            <DropdownMenuContent align="end" className="w-64 bg-[#0a0a0a] border-white/10 p-2 rounded-2xl shadow-2xl backdrop-blur-2xl animate-in fade-in zoom-in-95 duration-200 z-[1000] outline-none">
+                <DropdownMenuLabel className="px-3 py-3">
+                    <div className="flex flex-col gap-1">
+                        <p className="text-[9px] uppercase font-black tracking-widest text-white/30 italic">Linked Interface</p>
+                        <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                            <span className="text-xs font-bold text-white uppercase italic tracking-tighter">{wallet?.adapter.name}</span>
+                        </div>
                     </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator className="bg-white/5 mx-2" />
                 
-                <DropdownMenuItem onClick={copyAddress} className="rounded-xl p-3 focus:bg-white/5 transition-colors cursor-pointer group">
+                <DropdownMenuItem onClick={copyAddress} className="rounded-xl p-3 focus:bg-white/5 transition-colors cursor-pointer group outline-none m-1">
                     <Copy className="w-4 h-4 mr-3 text-white/40 group-hover:text-blue-400 transition-colors" />
                     <div className="flex flex-col">
                         <span className="text-xs font-bold text-white uppercase">Copy Address</span>
-                        <span className="text-[9px] text-white/40 font-mono">Neural signature extraction</span>
+                        <span className="text-[9px] text-white/40 font-mono italic">Extract signature</span>
                     </div>
                 </DropdownMenuItem>
 
-                <DropdownMenuItem onClick={() => setVisible(true)} className="rounded-xl p-3 focus:bg-white/5 transition-colors cursor-pointer group">
+                <DropdownMenuItem onClick={() => {
+                     if (isMobileDevice()) setShowMobileModal(true);
+                     else setVisible(true);
+                }} className="rounded-xl p-3 focus:bg-white/5 transition-colors cursor-pointer group outline-none m-1">
                     <RefreshCw className="w-4 h-4 mr-3 text-white/40 group-hover:text-purple-400 transition-colors" />
                     <div className="flex flex-col">
-                        <span className="text-xs font-bold text-white uppercase">Switch Wallet</span>
-                        <span className="text-[9px] text-white/40 font-mono">Re-route neural pathways</span>
+                        <span className="text-xs font-bold text-white uppercase">Re-route Link</span>
+                        <span className="text-[9px] text-white/40 font-mono italic">Switch interface</span>
                     </div>
                 </DropdownMenuItem>
 
@@ -156,20 +305,20 @@ export const WalletManager: FC = () => {
                 <DropdownMenuItem 
                     onClick={resetSession}
                     disabled={isResetting}
-                    className="rounded-xl p-3 focus:bg-red-500/10 transition-colors cursor-pointer group"
+                    className="rounded-xl p-3 focus:bg-red-500/10 transition-colors cursor-pointer group outline-none m-1"
                 >
                     <Trash2 className="w-4 h-4 mr-3 text-white/40 group-hover:text-red-400 transition-colors" />
                     <div className="flex flex-col">
-                        <span className="text-xs font-bold text-white uppercase group-hover:text-red-400">Reset All Sessions</span>
-                        <span className="text-[9px] text-white/40 font-mono">Total memory wipe if stuck</span>
+                        <span className="text-xs font-bold text-white uppercase group-hover:text-red-400">Total Wipe</span>
+                        <span className="text-[9px] text-white/40 font-mono italic">Purge all sessions</span>
                     </div>
                 </DropdownMenuItem>
 
-                <DropdownMenuItem onClick={() => disconnect()} className="rounded-xl p-3 focus:bg-red-500/10 transition-colors cursor-pointer group">
+                <DropdownMenuItem onClick={() => disconnect()} className="rounded-xl p-3 focus:bg-red-500/10 transition-colors cursor-pointer group outline-none m-1">
                     <LogOut className="w-4 h-4 mr-3 text-white/40 group-hover:text-red-500 transition-colors" />
                     <div className="flex flex-col">
-                        <span className="text-xs font-bold text-white uppercase group-hover:text-red-500">Terminate Link</span>
-                        <span className="text-[9px] text-white/40 font-mono">Disconnect from Solana cycle</span>
+                        <span className="text-xs font-bold text-white uppercase group-hover:text-red-500">Terminate</span>
+                        <span className="text-[9px] text-white/40 font-mono italic">Disconnect cycle</span>
                     </div>
                 </DropdownMenuItem>
             </DropdownMenuContent>
