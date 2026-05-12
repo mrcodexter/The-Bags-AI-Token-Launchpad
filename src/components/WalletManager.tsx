@@ -80,19 +80,24 @@ export const WalletManager: FC = () => {
     // Filter wallets for featured display
     const featuredWallets = useMemo(() => {
         // Priority: Trust Wallet, Binance Wallet
-        // We look for these specifically or fallback to WalletConnect
+        const preferred = ['trust', 'binance'];
         return wallets
             .filter(w => {
                 const name = w.adapter.name.toLowerCase();
-                return name.includes('trust') || name.includes('binance') || name.includes('walletconnect');
+                return preferred.some(p => name.includes(p)) || name.includes('walletconnect');
             })
             .sort((a, b) => {
                 const aName = a.adapter.name.toLowerCase();
                 const bName = b.adapter.name.toLowerCase();
+                
+                // Trust first
                 if (aName.includes('trust')) return -1;
                 if (bName.includes('trust')) return 1;
+                
+                // Binance second
                 if (aName.includes('binance')) return -1;
                 if (bName.includes('binance')) return 1;
+                
                 return 0;
             });
     }, [wallets]);
@@ -130,21 +135,20 @@ export const WalletManager: FC = () => {
         setShowMobileModal(false);
         console.log(`[DEBUG] Initiating mobile link for: ${walletName}`);
         
+        // Full reset before new connection attempt to prevent session mismatch
+        clearWalletSessions();
+
         // Deep Link logic for Mobile Browsers
         const currentUrl = window.location.href;
         const encodedUrl = encodeURIComponent(currentUrl);
         
         let deepLink = '';
-        if (walletName.includes('Trust')) {
+        if (walletName.toLowerCase().includes('trust')) {
             deepLink = `trust://wc?uri=`;
-        } else if (walletName.includes('Binance')) {
+        } else if (walletName.toLowerCase().includes('binance')) {
             deepLink = `bnc://app.binance.com/web3wallet/dapp?url=${encodedUrl}`;
-        } else if (walletName === 'WalletConnect') {
-             // Let the adapter handle it
         }
 
-        // For Trust and Binance, we often want to select the adapter first
-        // and let it generate the URI if it's WalletConnect based.
         try {
             console.log(`[DEBUG] Selecting adapter: ${walletName}`);
             await select(walletName as any);
@@ -158,6 +162,7 @@ export const WalletManager: FC = () => {
         } catch (error) {
             console.error('[DEBUG] Failed to establish mobile neural link:', error);
             toast.error('Connection Aborted');
+            clearWalletSessions();
         }
     }, [select]);
 
@@ -165,18 +170,35 @@ export const WalletManager: FC = () => {
         setIsResetting(true);
         console.log('[DEBUG] Executing full system purge...');
         try {
-            await disconnect();
+            // Disconnect if possible
+            if (connected) {
+                await disconnect();
+            }
+            
+            // Nuclear reset
+            localStorage.clear();
+            sessionStorage.clear();
+            
+            // Also explicitly clear all WC and Solana keys again just in case
             clearWalletSessions();
-            toast.success('Interface Cleared', {
-                description: 'All cached neural signatures purged.',
+
+            toast.success('System Reset Complete', {
+                description: 'All neural signatures purged. Refreshing...',
             });
-            setTimeout(() => window.location.reload(), 800);
+            
+            setTimeout(() => {
+                window.location.reload();
+            }, 1000);
         } catch (error) {
             setIsResetting(false);
             console.error('[DEBUG] Purge failed:', error);
             toast.error('Purge Failed');
+            // If disconnect failed, still attempt local clear and reload
+            localStorage.clear();
+            sessionStorage.clear();
+            setTimeout(() => window.location.reload(), 1000);
         }
-    }, [disconnect]);
+    }, [connected, disconnect]);
 
     const copyAddress = useCallback(() => {
         if (publicKey) {
