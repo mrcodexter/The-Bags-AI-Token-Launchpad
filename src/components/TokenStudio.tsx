@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { toast } from 'sonner';
 import { useWallet } from '@solana/wallet-adapter-react';
 import { transactionLogger } from '../lib/logger';
+import { bags } from '../lib/bags';
 
 const INITIAL_FORM_STATE = {
   name: '',
@@ -36,6 +37,11 @@ export function TokenStudio() {
     setIsDeploying(false);
   }, []);
 
+  const clearForm = useCallback(() => {
+    setFormData(INITIAL_FORM_STATE);
+    toast.info('Neural Logs Cleared', { description: 'Token parameters have been reset to defaults.' });
+  }, []);
+
   const validateForm = () => {
     // Name validation: Alphanumeric and spaces
     if (!formData.name.trim()) {
@@ -43,7 +49,7 @@ export function TokenStudio() {
        return false;
     }
     if (!/^[a-zA-Z0-9 ]+$/.test(formData.name)) {
-      toast.error("Validation Error", { description: "Token Name must be alphanumeric." });
+      toast.error("Validation Error", { description: "Token Name must be alphanumeric and spaces only." });
       return false;
     }
 
@@ -58,8 +64,8 @@ export function TokenStudio() {
     }
 
     // Supply validation: Positive integer
-    const supplyVal = parseInt(formData.supply);
-    if (isNaN(supplyVal) || supplyVal <= 0 || !Number.isInteger(Number(formData.supply))) {
+    const supplyVal = BigInt(formData.supply.replace(/,/g, ''));
+    if (supplyVal <= 0n) {
        toast.error("Validation Error", { description: "Initial Supply must be a positive integer." });
        return false;
     }
@@ -67,7 +73,7 @@ export function TokenStudio() {
     // Decimals validation
     const decimalsVal = parseInt(formData.decimals);
     if (isNaN(decimalsVal) || decimalsVal < 0 || decimalsVal > 18) {
-      toast.error("Validation Error", { description: "Decimals must be between 0 and 18." });
+      toast.error("Validation Error", { description: "Decimals must be between 0 and 18 (Standard is 9)." });
       return false;
     }
 
@@ -87,13 +93,22 @@ export function TokenStudio() {
     toast.info('Initialising Deployment Cycle', { description: 'Warping metadata into Solana Matrix.' });
     
     try {
-      const mockMint = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      const mockMint = 'sim_' + Math.random().toString(36).substring(2, 15);
       
       // Step-indexed simulation for realistic feedback
       await new Promise(r => setTimeout(r, 1500));
       setDeployStep(2);
       toast.info('Creating Mint Authority', { description: 'Assigning ownership to ' + publicKey.toBase58().slice(0, 8) + '...' });
       
+      // Real SDK call (simulated inside bags.ts)
+      const launchResult = await bags.launchToken({
+        name: formData.name,
+        symbol: formData.symbol,
+        description: formData.description,
+        initialSupply: Number(formData.supply.replace(/,/g, '')),
+        creator: publicKey.toBase58()
+      });
+
       await new Promise(r => setTimeout(r, 1800));
       setDeployStep(3);
       toast.info('Injecting Metadata', { description: 'Uploading JSON URI to decentralized storage nodes.' });
@@ -114,12 +129,12 @@ export function TokenStudio() {
         action: 'token_creation',
         status: 'success',
         wallet: publicKey.toBase58(),
-        signature: 'sim_' + Math.random().toString(36).substring(2, 12),
+        signature: launchResult.transaction || ('sim_' + Math.random().toString(36).substring(2, 12)),
         metadata: {
           name: formData.name,
           symbol: formData.symbol,
           supply: formData.supply,
-          mint: mockMint
+          mint: launchResult.mintAddress || mockMint
         }
       });
 
@@ -184,7 +199,10 @@ export function TokenStudio() {
           <CardContent className="p-6 sm:p-8 space-y-6 relative z-10">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="space-y-2 group">
-                <Label className="text-[10px] uppercase font-black tracking-widest text-white/40 group-focus-within:text-blue-500 transition-colors">Token Name *</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-[10px] uppercase font-black tracking-widest text-white/40 group-focus-within:text-blue-500 transition-colors">Token Name *</Label>
+                  <span className="text-[8px] font-bold text-white/20 uppercase tracking-tighter">Alphanumeric + Spaces</span>
+                </div>
                 <div className="relative">
                   <Fingerprint className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-blue-500 transition-colors" />
                   <Input 
@@ -196,7 +214,10 @@ export function TokenStudio() {
                 </div>
               </div>
               <div className="space-y-2 group">
-                <Label className="text-[10px] uppercase font-black tracking-widest text-white/40 group-focus-within:text-blue-500 transition-colors">Symbol *</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-[10px] uppercase font-black tracking-widest text-white/40 group-focus-within:text-blue-500 transition-colors">Symbol *</Label>
+                  <span className="text-[8px] font-bold text-white/20 uppercase tracking-tighter">2-10 Chars, A-Z</span>
+                </div>
                 <div className="relative">
                   <Coins className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/20 group-focus-within:text-blue-500 transition-colors" />
                   <Input 
@@ -211,7 +232,10 @@ export function TokenStudio() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <div className="space-y-2">
-                <Label className="text-[10px] uppercase font-black tracking-widest text-white/40">Initial Supply</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-[10px] uppercase font-black tracking-widest text-white/40">Initial Supply</Label>
+                  <span className="text-[8px] font-bold text-white/20 uppercase tracking-tighter">Positive Integer</span>
+                </div>
                 <Input 
                   type="number"
                   value={formData.supply}
@@ -220,7 +244,10 @@ export function TokenStudio() {
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-[10px] uppercase font-black tracking-widest text-white/40">Decimals</Label>
+                <div className="flex items-center justify-between">
+                  <Label className="text-[10px] uppercase font-black tracking-widest text-white/40">Decimals</Label>
+                  <span className="text-[8px] font-bold text-white/20 uppercase tracking-tighter">0 - 18 Range</span>
+                </div>
                 <Input 
                   type="number"
                   value={formData.decimals}
@@ -246,6 +273,16 @@ export function TokenStudio() {
             </div>
           </CardContent>
           <CardFooter className="p-6 sm:p-8 bg-white/[0.02] border-t border-white/5 flex flex-col sm:flex-row gap-3">
+             {!isDeploying && (
+                <Button 
+                  onClick={clearForm}
+                  variant="ghost"
+                  className="bg-white/5 border border-white/10 hover:bg-white/10 text-white/40 hover:text-white h-16 rounded-[1.25rem] px-6 font-black uppercase italic tracking-widest text-[10px] transition-all"
+                >
+                  Clear Form
+                </Button>
+             )}
+             
              <Button 
                 onClick={handleDeploy}
                 disabled={isDeploying}
@@ -271,7 +308,7 @@ export function TokenStudio() {
                   className="bg-red-500/10 border-red-500/20 text-red-500 hover:bg-red-500/20 h-16 sm:w-16 rounded-[1.25rem] shrink-0 font-black flex items-center justify-center gap-2 sm:gap-0"
                 >
                   <X className="w-5 h-5" />
-                  <span className="sm:hidden uppercase tracking-widest text-[10px]">Cancel Cycle</span>
+                  <span className="sm:hidden uppercase tracking-widest text-[10px]">Abort Sequence</span>
                 </Button>
              )}
           </CardFooter>
