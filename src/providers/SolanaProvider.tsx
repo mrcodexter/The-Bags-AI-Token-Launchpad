@@ -27,8 +27,8 @@ export const SolanaProvider: FC<{ children: ReactNode }> = ({ children }) => {
                 options: {
                     projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || '825902120dbbaaba30164627d2c3882f',
                     metadata: {
-                        name: 'Bags OS',
-                        description: 'AI-Powered Solana Launchpad',
+                        name: 'THE BAGS | AI OS',
+                        description: 'Neural Operating System for the Solana Matrix',
                         url: window.location.origin,
                         icons: [`${window.location.origin}/logo.png`],
                     },

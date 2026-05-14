@@ -45,30 +45,16 @@ const isInAppBrowser = () => {
 };
 
 // Emergency cleanup of stale sessions
-const clearWalletSessions = () => {
+const clearStaleWalletSessions = () => {
     if (typeof window === 'undefined') return;
     console.log('[DEBUG] Purging stale neural links...');
     
-    const keysToRemove = [
-        'walletName',
-        'walletconnect',
-        'WALLETCONNECT_DEEPLINK_CHOICE',
-        'solana-wallet-adapter-last-wallet',
-        'solana-wallet-adapter-selected-wallet',
-        'wc@2:client:0.3/session'
-    ];
-    
-    keysToRemove.forEach(k => localStorage.removeItem(k));
-    
-    // Clear all WC v2 keys
-    for (let i = localStorage.length - 1; i >= 0; i--) {
-        const key = localStorage.key(i);
-        if (key && (key.includes('wc@2') || key.includes('wallet-adapter-'))) {
-            localStorage.removeItem(key);
-        }
-    }
-    
+    // Nuclear option: clear everything to ensure no stale state
+    localStorage.clear();
     sessionStorage.clear();
+    
+    // Explicitly set some flags if needed by the adapter, but usually clearing is enough
+    console.log('[DEBUG] Memory banks wiped successfully.');
 };
 
 export const WalletManager: FC = () => {
@@ -77,28 +63,18 @@ export const WalletManager: FC = () => {
     const [isResetting, setIsResetting] = useState(false);
     const [showMobileModal, setShowMobileModal] = useState(false);
 
-    // Filter wallets for featured display
+    // Filter wallets for featured display - STRICTLY Trust and Binance
     const featuredWallets = useMemo(() => {
-        // Priority: Trust Wallet, Binance Wallet
-        const preferred = ['trust', 'binance'];
         return wallets
             .filter(w => {
                 const name = w.adapter.name.toLowerCase();
-                return preferred.some(p => name.includes(p)) || name.includes('walletconnect');
+                // ONLY Trust and WalletConnect (which we use for Binance)
+                return name.includes('trust') || name.includes('walletconnect');
             })
             .sort((a, b) => {
                 const aName = a.adapter.name.toLowerCase();
-                const bName = b.adapter.name.toLowerCase();
-                
-                // Trust first
                 if (aName.includes('trust')) return -1;
-                if (bName.includes('trust')) return 1;
-                
-                // Binance second
-                if (aName.includes('binance')) return -1;
-                if (bName.includes('binance')) return 1;
-                
-                return 0;
+                return 1;
             });
     }, [wallets]);
 
@@ -106,9 +82,10 @@ export const WalletManager: FC = () => {
     useEffect(() => {
         if (!connected && !connecting) {
             // Check if we have stale keys but no active connection
-            if (localStorage.getItem('walletName') || localStorage.getItem('walletconnect') || localStorage.getItem('solana-wallet-adapter-last-wallet')) {
+            const lastWallet = localStorage.getItem('solana-wallet-adapter-last-wallet');
+            if (lastWallet) {
                 console.log('[DEBUG] Detected stale session keys without connection. Cleaning up.');
-                clearWalletSessions();
+                clearStaleWalletSessions();
             }
         }
     }, [connected, connecting]);
@@ -116,11 +93,10 @@ export const WalletManager: FC = () => {
     // Monitor for disconnects to clear cache
     useEffect(() => {
         if (!connected && !connecting) {
-            // If we were just connected, or if we have keys, clear them
             const lastWallet = localStorage.getItem('solana-wallet-adapter-last-wallet');
             if (lastWallet) {
                 console.log('[DEBUG] Connection lost or terminated. Purging local cache.');
-                clearWalletSessions();
+                clearStaleWalletSessions();
             }
         }
     }, [connected, connecting]);
@@ -148,7 +124,7 @@ export const WalletManager: FC = () => {
         console.log(`[DEBUG] Initiating mobile link for: ${walletName}`);
         
         // Full reset before new connection attempt to prevent session mismatch
-        clearWalletSessions();
+        clearStaleWalletSessions();
 
         // Deep Link logic for Mobile Browsers
         const currentUrl = window.location.href;
@@ -161,7 +137,9 @@ export const WalletManager: FC = () => {
             localStorage.setItem('WALLETCONNECT_DEEPLINK_CHOICE', JSON.stringify({ name: 'Trust Wallet', href: 'trust://' }));
             walletName = 'WalletConnect';
         } else if (walletName.toLowerCase().includes('binance')) {
-            // Binance Web3 Wallet usually prefers their own deep link to open the DAPPS browser
+            // For Binance Web3 Wallet, we use WalletConnect but target their deep link
+            localStorage.setItem('WALLETCONNECT_DEEPLINK_CHOICE', JSON.stringify({ name: 'Binance Web3 Wallet', href: 'bnc://app.binance.com/' }));
+            walletName = 'WalletConnect';
             deepLink = `bnc://app.binance.com/web3wallet/dapp?url=${encodedUrl}`;
         }
 
@@ -169,7 +147,7 @@ export const WalletManager: FC = () => {
             console.log(`[DEBUG] Selecting adapter: ${walletName}`);
             await select(walletName as any);
             
-            // If we have a specific deep link (like Binance), we trigger it
+            // If we have a specific deep link, we trigger it
             if (deepLink) {
                 setTimeout(() => {
                     window.location.href = deepLink;
@@ -178,7 +156,7 @@ export const WalletManager: FC = () => {
         } catch (error) {
             console.error('[DEBUG] Failed to establish mobile neural link:', error);
             toast.error('Connection Aborted');
-            clearWalletSessions();
+            clearStaleWalletSessions();
         }
     }, [select]);
 
@@ -186,13 +164,13 @@ export const WalletManager: FC = () => {
         console.log('[DEBUG] Terminating connection...');
         try {
             await disconnect();
-            clearWalletSessions();
+            clearStaleWalletSessions();
             toast.success('Session Terminated', {
                 description: 'Neural signature purged from cache.',
             });
         } catch (error) {
             console.error('[DEBUG] Disconnect failed:', error);
-            clearWalletSessions();
+            clearStaleWalletSessions();
             window.location.reload();
         }
     }, [disconnect]);
@@ -201,32 +179,18 @@ export const WalletManager: FC = () => {
         setIsResetting(true);
         console.log('[DEBUG] Executing full system purge...');
         try {
-            // Disconnect if possible
             if (connected) {
                 await disconnect();
             }
-            
-            // Nuclear reset
-            localStorage.clear();
-            sessionStorage.clear();
-            
-            // Also explicitly clear all WC and Solana keys again just in case
-            clearWalletSessions();
-
+            clearStaleWalletSessions();
             toast.success('System Reset Complete', {
                 description: 'All neural signatures purged. Refreshing...',
             });
-            
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
+            setTimeout(() => window.location.reload(), 1000);
         } catch (error) {
             setIsResetting(false);
             console.error('[DEBUG] Purge failed:', error);
-            toast.error('Purge Failed');
-            // If disconnect failed, still attempt local clear and reload
-            localStorage.clear();
-            sessionStorage.clear();
+            clearStaleWalletSessions();
             setTimeout(() => window.location.reload(), 1000);
         }
     }, [connected, disconnect]);
