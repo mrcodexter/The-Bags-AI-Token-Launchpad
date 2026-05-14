@@ -106,8 +106,20 @@ export const WalletManager: FC = () => {
     useEffect(() => {
         if (!connected && !connecting) {
             // Check if we have stale keys but no active connection
-            if (localStorage.getItem('walletName') || localStorage.getItem('walletconnect')) {
+            if (localStorage.getItem('walletName') || localStorage.getItem('walletconnect') || localStorage.getItem('solana-wallet-adapter-last-wallet')) {
                 console.log('[DEBUG] Detected stale session keys without connection. Cleaning up.');
+                clearWalletSessions();
+            }
+        }
+    }, [connected, connecting]);
+
+    // Monitor for disconnects to clear cache
+    useEffect(() => {
+        if (!connected && !connecting) {
+            // If we were just connected, or if we have keys, clear them
+            const lastWallet = localStorage.getItem('solana-wallet-adapter-last-wallet');
+            if (lastWallet) {
+                console.log('[DEBUG] Connection lost or terminated. Purging local cache.');
                 clearWalletSessions();
             }
         }
@@ -144,8 +156,12 @@ export const WalletManager: FC = () => {
         
         let deepLink = '';
         if (walletName.toLowerCase().includes('trust')) {
-            deepLink = `trust://wc?uri=`;
+            // For Trust Wallet, we often use WalletConnect as the bridge in external browsers
+            // Set the preference for WC to pick up Trust Wallet
+            localStorage.setItem('WALLETCONNECT_DEEPLINK_CHOICE', JSON.stringify({ name: 'Trust Wallet', href: 'trust://' }));
+            walletName = 'WalletConnect';
         } else if (walletName.toLowerCase().includes('binance')) {
+            // Binance Web3 Wallet usually prefers their own deep link to open the DAPPS browser
             deepLink = `bnc://app.binance.com/web3wallet/dapp?url=${encodedUrl}`;
         }
 
@@ -153,11 +169,11 @@ export const WalletManager: FC = () => {
             console.log(`[DEBUG] Selecting adapter: ${walletName}`);
             await select(walletName as any);
             
-            // If we have a specific deep link (like Binance), we might need to trigger it
-            if (deepLink && !deepLink.includes('?uri=')) {
+            // If we have a specific deep link (like Binance), we trigger it
+            if (deepLink) {
                 setTimeout(() => {
                     window.location.href = deepLink;
-                }, 500);
+                }, 800);
             }
         } catch (error) {
             console.error('[DEBUG] Failed to establish mobile neural link:', error);
@@ -165,6 +181,21 @@ export const WalletManager: FC = () => {
             clearWalletSessions();
         }
     }, [select]);
+
+    const handleDisconnect = useCallback(async () => {
+        console.log('[DEBUG] Terminating connection...');
+        try {
+            await disconnect();
+            clearWalletSessions();
+            toast.success('Session Terminated', {
+                description: 'Neural signature purged from cache.',
+            });
+        } catch (error) {
+            console.error('[DEBUG] Disconnect failed:', error);
+            clearWalletSessions();
+            window.location.reload();
+        }
+    }, [disconnect]);
 
     const resetWallet = useCallback(async () => {
         setIsResetting(true);
@@ -362,7 +393,7 @@ export const WalletManager: FC = () => {
                     </div>
                 </DropdownMenuItem>
 
-                <DropdownMenuItem onClick={() => disconnect()} className="rounded-xl p-3 focus:bg-red-500/10 transition-colors cursor-pointer group outline-none m-1">
+                <DropdownMenuItem onClick={handleDisconnect} className="rounded-xl p-3 focus:bg-red-500/10 transition-colors cursor-pointer group outline-none m-1">
                     <LogOut className="w-4 h-4 mr-3 text-white/40 group-hover:text-red-500 transition-colors" />
                     <div className="flex flex-col">
                         <span className="text-xs font-bold text-white uppercase group-hover:text-red-500">Terminate</span>

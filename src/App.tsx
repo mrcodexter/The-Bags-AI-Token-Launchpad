@@ -272,24 +272,23 @@ export default function App() {
                           <DropdownMenuItem onClick={() => setVisible(true)}>
                              <RefreshCw className="w-3 h-3 mr-2" /> Change Wallet
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => {
+                          <DropdownMenuItem onClick={async () => {
                               console.log('[DEBUG] Initiating full system purge from profile...');
+                              if (connected) await disconnect();
                               localStorage.clear();
                               sessionStorage.clear();
-                              // Purge wallet specific keys
-                              for (let i = localStorage.length - 1; i >= 0; i--) {
-                                const key = localStorage.key(i);
-                                if (key && (key.includes('wallet') || key.includes('wc@2'))) {
-                                  localStorage.removeItem(key);
-                                }
-                              }
                               toast.info('Neural session reset initiates...');
                               setTimeout(() => window.location.reload(), 1000);
                           }}>
                              <Zap className="w-3 h-3 mr-2" /> Reset Session
                           </DropdownMenuItem>
                           <DropdownMenuSeparator className="bg-white/5" />
-                          <DropdownMenuItem onClick={() => disconnect()} className="text-red-400">
+                          <DropdownMenuItem onClick={async () => {
+                             await disconnect();
+                             localStorage.clear();
+                             sessionStorage.clear();
+                             toast.success('Interface Terminated');
+                          }} className="text-red-400">
                              <LogOut className="w-3 h-3 mr-2" /> Terminate Link
                           </DropdownMenuItem>
                        </DropdownMenuContent>
